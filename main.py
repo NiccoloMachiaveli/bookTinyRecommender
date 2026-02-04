@@ -1,8 +1,16 @@
 from fastapi import FastAPI, HTTPException
 import uvicorn
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, EmailStr
 
 app = FastAPI()
+
+
+class UserSchema(BaseModel):
+    id: int
+    email: EmailStr
+    age: int = Field(ge=0, le=120)
+    interests: str | None = Field(max_length=500)
+
 
 books = [
     {
@@ -16,6 +24,8 @@ books = [
         "author": "Чехов",
     },
 ]
+
+users = []
 
 
 @app.get("/books",
@@ -50,6 +60,21 @@ def create_book(new_book: NewBook):
         "author": new_book.author,
     })
     return {"success": True, "message": "Книга успешно добавлена"}
+
+
+@app.post("/users",
+          tags=["Пользователь"],
+          summary="Добавление пользователя")
+def add_users(user: UserSchema):
+    users.append(user)
+    return {"success": True, "message": "Пользователь успешно добавлен"}
+
+
+@app.get("/users",
+         tags=["Пользователь"],
+         summary="Получение всех пользователей")
+def get_users() -> list[UserSchema]:
+    return users
 
 
 if __name__ == "__main__":
