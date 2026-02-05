@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Response
 import uvicorn
 from pydantic import BaseModel, Field, EmailStr
 
@@ -8,7 +8,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from authx import AuthX, AuthXConfig
+
 app = FastAPI()
+
+config = AuthXConfig()
+config.JWT_SECRET_KEY = "SECRET_KEY"
+config.JWT_ACCESS_COOKIE_NAME = "my_access_token"
+config.JWT_TOKEN_LOCATION = ["cookies"]
+
+security = AuthX(config=config)
+
 
 engine = create_async_engine('sqlite+aiosqlite:///books.db')
 
@@ -21,6 +31,7 @@ async def get_session():
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
 
 class Base(DeclarativeBase):
     pass
@@ -56,6 +67,12 @@ class UserSchema(BaseModel):
     email: EmailStr
     age: int = Field(ge=0, le=120)
     interests: str | None = Field(max_length=500)
+    password: str
+
+
+class UserLoginSchema(BaseModel):
+    email: str
+    password: str
 
 
 users = []
@@ -108,6 +125,21 @@ def add_users(user: UserSchema):
          summary="Получение всех пользователей")
 def get_users() -> list[UserSchema]:
     return users
+
+
+@app.post("/login")
+def login(creds: UserLoginSchema, response: Response):
+    user = users[0]
+    if creds.email == user.email and creds.password == user.password:
+        token = security.create_access_token(uid=str(user.id))
+        response.set_cookie(config.JWT_ACCESS_COOKIE_NAME, token)
+        return {"access_token": token}
+    return HTTPException(status_code=401, detail="Incorrect username or password")
+
+
+@app.get("/protected", dependencies=[Depends(security.access_token_required)])
+def protected():
+    return {"ok": True}
 
 
 if __name__ == "__main__":
