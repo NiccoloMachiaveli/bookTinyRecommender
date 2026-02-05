@@ -129,12 +129,23 @@ def get_users() -> list[UserSchema]:
 
 @app.post("/login")
 def login(creds: UserLoginSchema, response: Response):
-    user = users[0]
+    _id = 0
+    for user in users:
+        user_id = 0
+        if creds.email == user.email:
+            _id = user_id
+            break
+        user_id += 1
+    else:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user = users[_id]
+
     if creds.email == user.email and creds.password == user.password:
         token = security.create_access_token(uid=str(user.id))
         response.set_cookie(config.JWT_ACCESS_COOKIE_NAME, token)
         return {"access_token": token}
-    return HTTPException(status_code=401, detail="Incorrect username or password")
+    return HTTPException(status_code=401, detail="Incorrect email or password")
 
 
 @app.get("/protected", dependencies=[Depends(security.access_token_required)])
