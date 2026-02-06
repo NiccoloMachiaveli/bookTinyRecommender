@@ -45,7 +45,9 @@ class BookModel(Base):
     author: Mapped[str]
 
 
-@app.post("/setup_database")
+@app.post("/setup_database",
+          tags=["База данных"],
+          summary="Временная настройка базы данных")
 async def setup_database():
     async with engine.begin() as connect:
         await connect.run_sync(Base.metadata.drop_all)
@@ -78,7 +80,9 @@ class UserLoginSchema(BaseModel):
 users = []
 
 
-@app.post("/login")
+@app.post("/login",
+          tags=["Авторизация"],
+          summary="Авторизация пользователя в систему")
 def login(creds: UserLoginSchema, response: Response):
     _id = 0
     for user in users:
